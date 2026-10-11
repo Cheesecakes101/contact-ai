@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #1b1a17;
+  --color-muted: #6b675f;
+  --color-line: #e7e3da;
+  --color-paper: #faf8f4;
+  --color-card: #ffffff;
+  --color-accent: #4f46e5;
+  --color-accent-soft: #eef0ff;
+  --color-warn: #b45309;
+  --color-warn-soft: #fff7e6;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-ink: #f3f1ec;
+    --color-muted: #a19c92;
+    --color-line: #34322d;
+    --color-paper: #151412;
+    --color-card: #1f1e1b;
+    --color-accent: #8b85ff;
+    --color-accent-soft: #26244a;
+    --color-warn: #f5b454;
+    --color-warn-soft: #3a2c12;
+  }
+}
+
+html, body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+input, textarea, select {
+  font-size: 16px; /* prevents iOS zoom on focus */
+}
+
+.field {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-line);
+  background: var(--color-card);
+  padding: 0.6rem 0.8rem;
+  outline: none;
+}
+.field:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+  100% { box-shadow: 0 0 0 18px rgba(239, 68, 68, 0); }
+}
+.recording { animation: pulse-ring 1.4s ease-out infinite; }
