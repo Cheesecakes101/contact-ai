@@ -114,7 +114,9 @@ export default function Home() {
                       {r.hint ? ` · ${r.hint}` : ""}
                     </span>
                   </span>
-                  <span className="shrink-0 text-sm text-accent">Reach out →</span>
+                  <span className="shrink-0 text-sm text-accent">
+                    <span className="hidden sm:inline">Reach out </span>→
+                  </span>
                 </Link>
               </li>
             ))}
