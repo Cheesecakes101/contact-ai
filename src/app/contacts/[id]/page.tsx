@@ -491,6 +491,12 @@ function WebProfile({
             Found automatically and may be about someone else with the same name. Confidence: <b>{e.confidence}</b> ·{" "}
             {timeAgo(e.fetchedAt)}
           </p>
+          {!e.summary && !e.role && !e.company && !e.linkedin && e.mentions.length === 0 && (
+            <p className="text-muted">
+              Couldn’t confidently find {contact.name.split(" ")[0]} online. Adding their company or role helps the search
+              tell them apart from namesakes.
+            </p>
+          )}
           {e.summary && <p className="leading-relaxed">{e.summary}</p>}
           <dl className="grid gap-2 sm:grid-cols-2">
             {e.role && (

@@ -44,7 +44,9 @@ const StructuredSchema = z.object({
   metHow: z.string().describe("How they met / who introduced them. Empty if unknown."),
   whatTheyDo: z.string().describe("Their job, company, projects. Empty if unknown."),
   company: z.string().describe("Company / organisation name only, if mentioned. Empty if unknown."),
-  role: z.string().describe("Job title / role only, if mentioned. Empty if unknown."),
+  role: z
+    .string()
+    .describe("Job title exactly as the user stated it (e.g. 'runs ops' → 'Operations'). Don't upgrade it into a formal title. Empty if unknown."),
   interests: z.array(z.string()).describe("Personal and professional interests, short phrases."),
   collaboration: z
     .array(z.string())
@@ -155,6 +157,7 @@ function compactContact(c: Contact, interactions: Interaction[] = []) {
     webUnverified: c.enrichment
       ? { role: c.enrichment.role || undefined, company: c.enrichment.company || undefined, summary: c.enrichment.summary || undefined }
       : undefined,
+    addedOn: c.createdAt.slice(0, 10),
     lastInteraction: c.lastInteractionAt ?? undefined,
     recentInteractions: interactions.slice(0, 3).map((i) => `${i.date.slice(0, 10)}: ${i.summary}`),
   };
