@@ -6,6 +6,8 @@ import type { Contact, Enrichment, Interaction, StructuredContext } from "./type
 import { CATEGORIES, categoryLabel } from "./types";
 
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5-5";
+// Structuring a note is plain extraction, so use a fast model to keep "Organise with AI" snappy.
+const FAST_MODEL = process.env.ANTHROPIC_FAST_MODEL || "claude-haiku-5-5";
 
 // Server-side refusal fallback: if the model declines for policy reasons, the API
 // re-runs the request on a default fallback model inside the same call.
@@ -81,19 +83,23 @@ export async function structureContext(input: {
     ? `\n\nExisting structured context for this person (merge new information into it, keep what is still true):\n${JSON.stringify(input.existing)}`
     : "";
 
-  const response = await client().beta.messages.parse({
-    model: MODEL,
-    max_tokens: 4000,
-    ...FALLBACK,
-    output_config: { effort: "low", format: betaZodOutputFormat(StructuredSchema) },
-    system: STRUCTURE_SYSTEM,
-    messages: [
-      {
-        role: "user",
-        content: `Today is ${today()}. Person: ${input.name || "(name not given)"}${existing}\n\nWhat I said about them:\n"""\n${input.text}\n"""`,
-      },
-    ],
-  });
+  const response = await client().beta.messages.parse(
+    {
+      model: FAST_MODEL,
+      max_tokens: 2000,
+      ...FALLBACK,
+      output_config: { format: betaZodOutputFormat(StructuredSchema) },
+      system: STRUCTURE_SYSTEM,
+      messages: [
+        {
+          role: "user",
+          content: `Today is ${today()}. Person: ${input.name || "(name not given)"}${existing}\n\nWhat I said about them:\n"""\n${input.text}\n"""`,
+        },
+      ],
+    },
+    // Fail fast instead of hanging on the SDK's 10-minute default.
+    { timeout: 45_000, maxRetries: 1 },
+  );
   if (response.stop_reason === "refusal" || !response.parsed_output) {
     return fallbackStructure(input.text, input.existing);
   }

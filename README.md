@@ -41,12 +41,15 @@ npm run dev                  # http://localhost:3000
 |---|---|
 | `ANTHROPIC_API_KEY` | Turns on the AI features: structuring, smart search, web enrichment and reconnect drafts. The app still works without it. |
 | `ANTHROPIC_MODEL` | Optional model override (default `claude-opus-5-5`). |
+| `ANTHROPIC_FAST_MODEL` | Optional model for organising notes (default `claude-haiku-5-5`). |
 | `APP_PASSCODE` | Optional. Locks your private contacts behind a passcode. Contact Drop rooms stay public. |
 | `DATABASE_PATH` | Optional. SQLite file location (default `data/contacts.db`). |
 
 Voice capture uses the browser's Web Speech API (Chrome, Edge and Safari, including iOS). In other browsers the text box still works, and the keyboard's dictation mic is a good fallback.
 
 **Deploying:** data is kept in a local SQLite file, so deploy to a host with a persistent disk (Railway, Fly.io, Render, a VPS). Serverless hosts with ephemeral filesystems like Vercel would lose data. Set `APP_PASSCODE` on any public deployment.
+
+On Railway (`railway.json` is included): create a project from this GitHub repo, add a volume mounted at `/data`, set `DATABASE_PATH=/data/contacts.db`, `ANTHROPIC_API_KEY` and `APP_PASSCODE`, then generate a domain under Settings → Networking.
 
 ## Code map
 
