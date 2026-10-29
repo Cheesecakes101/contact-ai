@@ -14,6 +14,7 @@ import type {
   RoomCard,
   StructuredContext,
 } from "./types";
+import { seedSampleDataIfEmpty } from "./sample";
 
 const DB_PATH = process.env.DATABASE_PATH ?? path.join(process.cwd(), "data", "contacts.db");
 
@@ -87,7 +88,11 @@ function open(): DatabaseSync {
 }
 
 export function db(): DatabaseSync {
-  globalThis.__contactDb ??= open();
+  if (!globalThis.__contactDb) {
+    globalThis.__contactDb = open();
+    // Demo deployments start with fictional contacts.
+    if (process.env.SEED_SAMPLE_DATA === "1") seedSampleDataIfEmpty();
+  }
   return globalThis.__contactDb;
 }
 

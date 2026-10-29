@@ -44,6 +44,7 @@ npm run dev                  # http://localhost:3000
 | `ANTHROPIC_FAST_MODEL` | Optional model for organising notes (default `claude-haiku-5-5`). |
 | `APP_PASSCODE` | Optional. Locks your private contacts behind a passcode. Contact Drop rooms stay public. |
 | `DATABASE_PATH` | Optional. SQLite file location (default `data/contacts.db`). |
+| `SEED_SAMPLE_DATA` | Optional. Set to `1` on a demo deployment to load fictional sample contacts into an empty database. |
 
 Voice capture uses the browser's Web Speech API (Chrome, Edge and Safari, including iOS). In other browsers the text box still works, and the keyboard's dictation mic is a good fallback.
 
