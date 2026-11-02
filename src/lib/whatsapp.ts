@@ -14,14 +14,14 @@ export function normalizePhone(v: string): string {
 
 export function isOwnerNumber(from: string): boolean {
   const owner = process.env.OWNER_WHATSAPP_NUMBER;
-  if (!owner) return true; // no allowlist configured — anyone who has the number can message the bot
+  if (!owner) return false; // fail closed: without an allowlist, nobody can add contacts by WhatsApp
   return normalizePhone(from) === normalizePhone(owner);
 }
 
 /** Verifies Meta's X-Hub-Signature-256 header against the raw request body. */
 export function verifyWebhookSignature(rawBody: string, signatureHeader: string | null): boolean {
   const secret = process.env.WHATSAPP_APP_SECRET;
-  if (!secret) return true; // signature check skipped when no app secret is configured
+  if (!secret) return false; // fail closed: the webhook is public, so unsigned requests are never trusted
   if (!signatureHeader?.startsWith("sha256=")) return false;
   const expected = createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");
   const given = signatureHeader.slice(7);
