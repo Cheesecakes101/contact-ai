@@ -2,7 +2,19 @@ import { NextResponse, type NextRequest } from "next/server";
 
 // Optional single-user lock. When APP_PASSCODE is set, everything except
 // Contact Drop rooms (which attendees open without an account) needs the cookie.
-const PUBLIC = [/^\/drop(\/|$)/, /^\/api\/rooms(\/|$)/, /^\/login$/, /^\/api\/login$/, /^\/_next\//, /^\/favicon/, /^\/manifest/, /^\/icon/];
+// The WhatsApp webhook is also exempt — Meta can't hold a login cookie, so that
+// route authenticates itself instead (signature check + sender-number allowlist).
+const PUBLIC = [
+  /^\/drop(\/|$)/,
+  /^\/api\/rooms(\/|$)/,
+  /^\/api\/whatsapp(\/|$)/,
+  /^\/login$/,
+  /^\/api\/login$/,
+  /^\/_next\//,
+  /^\/favicon/,
+  /^\/manifest/,
+  /^\/icon/,
+];
 
 async function sha256(text: string) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));

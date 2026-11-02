@@ -241,6 +241,16 @@ export function deleteContact(id: string): void {
   db().prepare("DELETE FROM contacts WHERE id = ?").run(id);
 }
 
+/** Exact (case-insensitive) match first, else a single unambiguous partial match. */
+export function findContactByName(name: string): Contact | null {
+  const needle = name.trim().toLowerCase();
+  if (!needle) return null;
+  const exact = db().prepare("SELECT * FROM contacts WHERE LOWER(name) = ?").get(needle) as Row | undefined;
+  if (exact) return toContact(exact);
+  const partial = db().prepare("SELECT * FROM contacts WHERE LOWER(name) LIKE ?").all(`%${needle}%`) as Row[];
+  return partial.length === 1 ? toContact(partial[0]) : null;
+}
+
 // ---------- Interactions ----------
 
 export function listInteractions(contactId: string): Interaction[] {
