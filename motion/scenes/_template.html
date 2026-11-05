@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>New scene</title>
+<link rel="stylesheet" href="../lib/motion.css">
+<style>
+  #scene { background: #faf8f4; color: #1b1a17; font-family: Inter, system-ui, sans-serif; }
+  .center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  h1 { font-size: 150px; font-weight: 700; letter-spacing: -0.045em; margin: 0; }
+  p { font-size: 44px; color: #6b675f; margin: 24px 0 0; }
+</style>
+</head>
+<body>
+<div id="scene">
+  <div class="center">
+    <h1 id="title">Hello</h1>
+    <p id="sub">Edit me in motion/scenes</p>
+  </div>
+</div>
+
+<script src="../lib/motion.js"></script>
+<script>
+  const { tween, progress, ease, style } = Motion;
+  const $ = (s) => document.querySelector(s);
+
+  Motion.mount({
+    width: 1920, height: 1080, fps: 30, duration: 4,
+    root: $('#scene'),
+    render(t) {
+      style($('#title'), { o: progress(t, 0.2, 0.9), y: tween(t, 0.2, 1.1, 60, 0, ease.outQuint), blur: tween(t, 0.2, 0.8, 12, 0) });
+      style($('#sub'), { o: progress(t, 0.7, 1.3), y: tween(t, 0.7, 1.5, 30, 0, ease.outQuint) });
+    },
+  });
+</script>
+</body>
+</html>
