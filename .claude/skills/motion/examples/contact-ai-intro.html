@@ -1,0 +1,205 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Contact AI intro</title>
+<link rel="stylesheet" href="../lib/motion.css">
+<style>
+  :root {
+    --ink: #1b1a17; --muted: #6b675f; --line: #e7e3da; --paper: #faf8f4;
+    --card: #ffffff; --accent: #4f46e5; --accent-soft: #eef0ff;
+  }
+  #scene { background: var(--paper); color: var(--ink); font-family: Inter, system-ui, sans-serif; }
+  #scene * { box-sizing: border-box; }
+  .abs { position: absolute; }
+  .shot { position: absolute; inset: 0; }
+  .blob { position: absolute; width: 900px; height: 900px; border-radius: 50%; filter: blur(120px); opacity: .55; }
+  #blobA { background: #dcdcff; left: -200px; top: -300px; }
+  #blobB { background: #f6e7d2; right: -250px; bottom: -350px; }
+
+  /* Shot 1 + 4: titles */
+  .center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .title { font-size: 168px; font-weight: 700; letter-spacing: -0.045em; margin: 0; line-height: 1; }
+  .title span { color: var(--accent); }
+  .sub { font-size: 44px; color: var(--muted); margin: 28px 0 0; font-weight: 450; letter-spacing: -0.01em; }
+
+  .step { left: 160px; top: 120px; display: flex; align-items: center; gap: 20px; font-size: 40px; font-weight: 600; letter-spacing: -0.02em; }
+  .step b { width: 60px; height: 60px; border-radius: 30px; background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 30px; }
+
+  .card { background: var(--card); border: 2px solid var(--line); border-radius: 36px; box-shadow: 0 30px 60px -30px rgba(40, 30, 10, .25); }
+
+  /* Shot 2: voice note → profile */
+  #mic { left: 160px; top: 240px; width: 760px; height: 670px; padding: 56px; }
+  .mic-head { display: flex; align-items: center; gap: 24px; font-size: 30px; color: var(--muted); font-weight: 500; }
+  .dot { width: 22px; height: 22px; border-radius: 11px; background: #e5484d; }
+  #wave { display: flex; align-items: center; gap: 9px; height: 170px; margin: 40px 0 34px; }
+  #wave i { display: block; width: 14px; border-radius: 7px; background: var(--accent); }
+  #transcript { font-size: 38px; line-height: 1.38; letter-spacing: -0.01em; min-height: 200px; }
+  .caret { display: inline-block; width: 4px; height: 40px; background: var(--accent); vertical-align: -6px; margin-left: 4px; }
+
+  #profile { left: 1000px; top: 240px; width: 760px; height: 670px; padding: 52px 56px; }
+  .who { display: flex; align-items: center; gap: 26px; }
+  .avatar { width: 104px; height: 104px; border-radius: 52px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-weight: 700; font-size: 38px; flex: none; }
+  .name { font-size: 48px; font-weight: 700; letter-spacing: -0.03em; }
+  .chip { display: inline-block; padding: 10px 22px; border-radius: 999px; font-size: 26px; font-weight: 600; background: var(--accent-soft); color: var(--accent); }
+  .row { margin-top: 28px; }
+  .row small { display: block; font-size: 24px; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: .06em; }
+  .row div { font-size: 36px; margin-top: 8px; font-weight: 500; letter-spacing: -0.01em; }
+  .tags { display: flex; gap: 14px; margin-top: 34px; }
+  .tag { padding: 12px 24px; border-radius: 999px; border: 2px solid var(--line); font-size: 26px; font-weight: 500; }
+  #ai-badge { right: 48px; top: 48px; font-size: 22px; color: var(--accent); font-weight: 600; }
+
+  /* Shot 3: search */
+  #search { left: 410px; top: 250px; width: 1100px; height: 124px; padding: 0 48px; display: flex; align-items: center; gap: 28px; font-size: 44px; letter-spacing: -0.01em; }
+  #search svg { flex: none; }
+  .result { left: 410px; width: 1100px; height: 176px; padding: 0 44px; display: flex; align-items: center; gap: 32px; }
+  #r1 { top: 440px; } #r2 { top: 650px; }
+  .result .name { font-size: 42px; }
+  .reason { font-size: 32px; color: var(--muted); margin-top: 10px; position: relative; }
+  .mark { position: relative; color: var(--ink); }
+  .mark::before { content: ""; position: absolute; left: -6px; right: -6px; top: 4px; bottom: 0; background: #fde68a; border-radius: 8px; z-index: -1; transform-origin: left; transform: scaleX(var(--p, 0)); }
+  .reason .txt { position: relative; z-index: 1; }
+</style>
+</head>
+<body>
+<div id="scene">
+  <div id="blobA" class="blob"></div>
+  <div id="blobB" class="blob"></div>
+
+  <!-- 1. Title -->
+  <section id="s1" class="shot">
+    <div class="center">
+      <h1 id="t1" class="title">Contact <span>AI</span></h1>
+      <p id="t1sub" class="sub">Remember everyone you meet.</p>
+    </div>
+  </section>
+
+  <!-- 2. Voice note becomes a profile -->
+  <section id="s2" class="shot">
+    <div id="step2" class="step abs"><b>1</b>Talk about them for 30 seconds</div>
+    <div id="mic" class="card abs">
+      <div class="mic-head"><span id="rec" class="dot"></span><span id="mic-label">Recording · how do you know them?</span></div>
+      <div id="wave"></div>
+      <div id="transcript"></div>
+    </div>
+    <div id="profile" class="card abs">
+      <div id="ai-badge" class="abs">✦ Structured by AI</div>
+      <div class="who p-item">
+        <div class="avatar">PR</div>
+        <div><div class="name">Priya Raman</div><span class="chip" style="margin-top:12px">Friend</span></div>
+      </div>
+      <div class="row p-item"><small>Where you met</small><div>Night School</div></div>
+      <div class="row p-item"><small>What they do</small><div>Founder of a jewellery brand</div></div>
+      <div class="row p-item"><small>Could use help with</small><div>Product photography</div></div>
+      <div class="tags">
+        <span class="tag p-tag">Jewellery</span><span class="tag p-tag">Founder</span><span class="tag p-tag">Night School</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Plain-English search -->
+  <section id="s3" class="shot">
+    <div id="step3" class="step abs"><b>2</b>Find them later, in plain English</div>
+    <div id="search" class="card abs">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#6b675f" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <span><span id="query"></span><span id="caret3" class="caret"></span></span>
+    </div>
+    <div id="r1" class="result card abs">
+      <div class="avatar">PR</div>
+      <div><div class="name">Priya Raman</div>
+        <div class="reason"><span class="txt">Runs a <span id="mark1" class="mark">jewellery brand</span> · you met at Night School</span></div></div>
+    </div>
+    <div id="r2" class="result card abs">
+      <div class="avatar" style="background:#f6efe2;color:#9a6b16">SO</div>
+      <div><div class="name">Sam Okafor</div>
+        <div class="reason"><span class="txt">Designer who sells <span id="mark2" class="mark">handmade rings</span> on Etsy</span></div></div>
+    </div>
+  </section>
+
+  <!-- 4. End card -->
+  <section id="s4" class="shot">
+    <div class="center">
+      <h1 id="t4" class="title" style="font-size:132px">Contact <span>AI</span></h1>
+      <p id="t4sub" class="sub">Add someone. Talk. Find them later.</p>
+    </div>
+  </section>
+</div>
+
+<script src="../lib/motion.js"></script>
+<script>
+  const { tween, progress, envelope, typed, ease, style } = Motion;
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => [...document.querySelectorAll(s)];
+
+  const BARS = 34;
+  $('#wave').innerHTML = '<i></i>'.repeat(BARS);
+  const bars = $$('#wave i');
+  const pItems = $$('.p-item');
+  const pTags = $$('.p-tag');
+
+  const TRANSCRIPT = 'Met Priya at Night School. She runs a jewellery brand and wants help with product photos.';
+  const QUERY = 'Who can help me with jewellery?';
+
+  Motion.mount({
+    width: 1920, height: 1080, fps: 30, duration: 11,
+    root: $('#scene'),
+    render(t) {
+      // Slow drifting background
+      style($('#blobA'), { x: Math.sin(t * 0.4) * 80, y: Math.cos(t * 0.3) * 60 });
+      style($('#blobB'), { x: Math.cos(t * 0.35) * 90, y: Math.sin(t * 0.45) * 50 });
+
+      // 1. Title  (0 – 2.6s)
+      const e1 = envelope(t, 0, 2.6, 0.01, 0.5);
+      $('#s1').style.opacity = e1;
+      style($('#t1'), { o: progress(t, 0.1, 0.9, ease.outCubic), y: tween(t, 0.1, 1.0, 60, 0, ease.outQuint) - tween(t, 2.1, 2.6, 0, 40, ease.inCubic), blur: tween(t, 0.1, 0.7, 14, 0) });
+      style($('#t1sub'), { o: progress(t, 0.6, 1.3, ease.outCubic), y: tween(t, 0.6, 1.4, 30, 0, ease.outQuint) - tween(t, 2.1, 2.6, 0, 40, ease.inCubic) });
+
+      // 2. Voice note → profile  (2.4 – 6.5s)
+      $('#s2').style.opacity = envelope(t, 2.4, 6.5, 0.4, 0.45);
+      const out2 = tween(t, 6.0, 6.5, 0, -50, ease.inCubic);
+      style($('#step2'), { o: progress(t, 2.5, 3.0), x: tween(t, 2.5, 3.1, -40, 0, ease.outQuint), y: out2 });
+      style($('#mic'), { o: progress(t, 2.5, 3.0), y: tween(t, 2.5, 3.2, 80, 0, ease.outQuint) + out2 });
+      const talking = envelope(t, 2.9, 5.2, 0.3, 0.4);
+      bars.forEach((b, i) => {
+        const wobble = Math.abs(Math.sin(t * 8.3 + i * 0.62) * Math.sin(t * 3.1 + i * 0.27));
+        b.style.height = 14 + talking * (30 + 130 * wobble) + 'px';
+        b.style.opacity = 0.35 + 0.65 * talking;
+      });
+      $('#rec').style.opacity = t < 5.2 ? 0.4 + 0.6 * Math.abs(Math.cos(t * 3)) : 0.25;
+      $('#mic-label').textContent = t < 5.2 ? 'Recording · how do you know them?' : 'Saved · 0:28';
+      const shown = typed(TRANSCRIPT, t, 3.0, 42);
+      $('#transcript').innerHTML = shown + (shown.length < TRANSCRIPT.length ? '<span class="caret"></span>' : '');
+
+      style($('#profile'), { o: progress(t, 3.6, 4.1), x: tween(t, 3.6, 4.4, 60, 0, ease.outQuint), y: out2 });
+      style($('#ai-badge'), { o: progress(t, 4.0, 4.4) * (0.6 + 0.4 * Math.abs(Math.sin(t * 2))) });
+      pItems.forEach((el, i) => {
+        const a = 4.1 + i * 0.22;
+        style(el, { o: progress(t, a, a + 0.35), y: tween(t, a, a + 0.5, 24, 0, ease.outQuint) });
+      });
+      pTags.forEach((el, i) => {
+        const a = 5.1 + i * 0.12;
+        style(el, { o: progress(t, a, a + 0.2), s: tween(t, a, a + 0.45, 0.6, 1, ease.outBack) });
+      });
+
+      // 3. Search  (6.3 – 9.6s)
+      $('#s3').style.opacity = envelope(t, 6.3, 9.6, 0.4, 0.45);
+      const out3 = tween(t, 9.15, 9.6, 0, -50, ease.inCubic);
+      style($('#step3'), { o: progress(t, 6.4, 6.9), x: tween(t, 6.4, 7.0, -40, 0, ease.outQuint), y: out3 });
+      style($('#search'), { o: progress(t, 6.4, 6.9), y: tween(t, 6.4, 7.1, 50, 0, ease.outQuint) + out3, s: tween(t, 6.4, 7.1, 0.96, 1, ease.outQuint) });
+      $('#query').textContent = typed(QUERY, t, 6.9, 30);
+      $('#caret3').style.opacity = t > 7.95 ? (Math.floor(t * 2.5) % 2 ? 0 : 1) : 1;
+      [['#r1', 8.05], ['#r2', 8.25]].forEach(([id, a]) => {
+        style($(id), { o: progress(t, a, a + 0.35), y: tween(t, a, a + 0.6, 50, 0, ease.outQuint) + out3 });
+      });
+      $('#mark1').style.setProperty('--p', progress(t, 8.5, 8.9, ease.inOutCubic));
+      $('#mark2').style.setProperty('--p', progress(t, 8.7, 9.1, ease.inOutCubic));
+
+      // 4. End card  (9.5 – 11s)
+      $('#s4').style.opacity = progress(t, 9.5, 9.8);
+      style($('#t4'), { o: progress(t, 9.55, 10.1, ease.outCubic), s: tween(t, 9.55, 11, 0.94, 1, ease.outCubic), blur: tween(t, 9.55, 10.0, 10, 0) });
+      style($('#t4sub'), { o: progress(t, 9.9, 10.4, ease.outCubic), y: tween(t, 9.9, 10.5, 24, 0, ease.outQuint) });
+    },
+  });
+</script>
+</body>
+</html>

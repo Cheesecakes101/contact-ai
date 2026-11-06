@@ -1,0 +1,31 @@
+html, body { margin: 0; padding: 0; }
+
+.motion-stage { position: relative; overflow: hidden; transform-origin: 0 0; }
+.motion-stage > * { position: relative; overflow: hidden; }
+
+/* Every frame must come from render(t) alone, so CSS motion is switched off. */
+.motion-stage *, .motion-stage *::before, .motion-stage *::after {
+  transition: none !important;
+  animation: none !important;
+}
+
+.motion-preview body {
+  min-height: 100vh;
+  background: #0e0e10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  font: 13px/1 Inter, system-ui, sans-serif;
+  color: #cfcfd4;
+}
+.motion-preview .motion-frame { box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); border-radius: 6px; overflow: hidden; }
+
+.motion-bar { display: flex; align-items: center; gap: 12px; width: min(900px, calc(100vw - 32px)); }
+.motion-bar button {
+  width: 36px; height: 36px; border-radius: 18px; border: 0; cursor: pointer;
+  background: #2a2a30; color: #fff; font-size: 13px;
+}
+.motion-bar input { flex: 1; accent-color: #8b85ff; }
+.motion-time { font-variant-numeric: tabular-nums; min-width: 190px; text-align: right; }
