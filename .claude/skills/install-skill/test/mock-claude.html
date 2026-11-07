@@ -24,15 +24,30 @@
       <div id="menu1" class="menu" role="menu" hidden><div role="menuitem" id="create">Create skill</div><div role="menuitem">Write with Claude</div></div>
       <div id="menu2" class="menu" role="menu" hidden><div role="menuitem" id="upload"></div></div>
       <ul id="list"><li>pdf</li></ul>
+      <div id="detail" hidden><h3 id="detail-name"></h3><button aria-label="More options">⋯</button>
+        <div id="menu3" class="menu" role="menu" hidden><div role="menuitem">Share</div><div role="menuitem" id="del">Delete</div></div></div>
     </div>
   </section>
   <input type="file" id="file" accept=".zip" hidden>
 </main>
 <script>
-  const variant = new URLSearchParams(location.search).get('variant');
+  const params = new URLSearchParams(location.search);
+  const variant = params.get('variant');
   const $ = (id) => document.getElementById(id);
   // "renamed" pretends Anthropic changed the button label, to test teach mode.
   $('upload').textContent = variant === 'renamed' ? 'Import from a file' : 'Upload a skill';
+  const addSkill = (n) => { const li = document.createElement('li'); li.textContent = n; li.onclick = () => openDetail(n); $('list').appendChild(li); };
+  const openDetail = (n) => { $('detail').hidden = false; $('detail-name').textContent = n; $('detail').dataset.name = n; };
+  if (params.get('existing')) addSkill(params.get('existing'));
+  document.querySelector('[aria-label="More options"]').onclick = () => { $('menu3').hidden = false; };
+  $('del').onclick = () => {
+    $('menu3').hidden = true; const n = $('detail').dataset.name;
+    const d = document.createElement('dialog');
+    d.innerHTML = `<p>Delete ${n}? This can't be undone.</p><button>Cancel</button><button id="yes">Delete</button>`;
+    document.body.appendChild(d); d.showModal();
+    d.querySelector('#yes').onclick = () => { d.close(); d.remove(); $('detail').hidden = true;
+      [...$('list').children].filter((li) => li.textContent === n).forEach((li) => li.remove()); };
+  };
   $('customize').onclick = (e) => { e.preventDefault(); $('panel').hidden = false; };
   $('tab-skills').onclick = () => { $('skills').hidden = false; };
   $('add').onclick = () => { $('menu1').hidden = false; };
@@ -45,7 +60,7 @@
     document.body.appendChild(d); d.showModal();
     d.querySelector('#ok').onclick = () => {
       setTimeout(() => { d.close(); d.remove();
-        const li = document.createElement('li'); li.textContent = f.name.replace(/\.zip$/, ''); $('list').appendChild(li);
+        addSkill(f.name.replace(/\.zip$/, ''));
       }, 400);
     };
   };

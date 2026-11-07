@@ -5,6 +5,7 @@ Install Claude skills without using any Claude usage.
     python install_skill.py path/to/skill-folder-or.zip [more ...]   # Claude app (claude.ai)
     python install_skill.py motion.zip --code                         # also into Claude Code (~/.claude/skills)
     python install_skill.py motion.zip --code-only                    # only Claude Code, no browser
+    python install_skill.py motion.zip --replace                      # update: delete the old "motion" first
     python install_skill.py --login                                   # just sign in once and save the session
     python install_skill.py --forget                                  # forget learned buttons
 
@@ -38,11 +39,13 @@ BASE_URL = os.environ.get("SKILL_INSTALLER_URL", "https://claude.ai/")
 
 # Each step lists ways to find its button, tried in order. Learned clicks are tried first.
 # "optional" steps are skipped when the next step's button is already showing.
-STEPS = [
+NAV_STEPS = [
     {"key": "customize", "label": "Customize", "optional": True, "find": [
         ("role", "link", "Customize"), ("role", "button", "Customize"), ("text", "Customize")]},
     {"key": "skills", "label": "Skills", "optional": True, "find": [
         ("role", "tab", "Skills"), ("role", "link", "Skills"), ("role", "button", "Skills"), ("text", "Skills")]},
+]
+UPLOAD_STEPS = [
     {"key": "add", "label": "+ (add skill)", "optional": True, "find": [
         ("role", "button", "+"), ("aria", "Add skill"), ("aria", "Add"), ("aria", "New skill"), ("aria", "Create")]},
     {"key": "create", "label": "Create skill", "optional": True, "find": [
@@ -50,6 +53,17 @@ STEPS = [
     {"key": "upload", "label": "Upload a skill", "optional": False, "find": [
         ("role", "menuitem", "Upload a skill"), ("role", "button", "Upload a skill"), ("text", "Upload a skill"),
         ("role", "menuitem", "Upload skill"), ("role", "button", "Upload skill")]},
+]
+# Deleting an existing skill (only with --replace). "{name}" is filled in with the skill's name.
+DELETE_STEPS = [
+    {"key": "open_existing", "label": "the existing skill", "optional": False, "find": [
+        ("role", "link", "{name}"), ("role", "button", "{name}"), ("text", "{name}")]},
+    {"key": "more", "label": "the skill's ... (more options) menu", "optional": True, "find": [
+        ("aria", "More options"), ("aria", "Options"), ("aria", "More"), ("aria", "Skill options"),
+        ("role", "button", "..."), ("role", "button", "\u2026")]},
+    {"key": "delete", "label": "Delete", "optional": False, "find": [
+        ("role", "menuitem", "Delete"), ("role", "menuitem", "Delete skill"), ("role", "button", "Delete skill"),
+        ("role", "button", "Delete"), ("role", "menuitem", "Remove"), ("role", "button", "Remove")]},
 ]
 CONFIRM_BUTTONS = ["Upload", "Upload skill", "Save", "Create", "Add", "Done"]
 
@@ -147,9 +161,11 @@ def save_learned(data: dict) -> None:
     LEARNED_FILE.write_text(json.dumps(data, indent=2))
 
 
-def locators_for(page, step: dict, learned: dict):
+def locators_for(page, step: dict, learned: dict, name: str = ""):
     out = []
     rec = learned.get(step["key"])
+    if step["key"] == "open_existing":
+        rec = None  # learned text would be another skill's name
     if rec:
         if rec.get("testid"):
             out.append(page.get_by_test_id(rec["testid"]))
@@ -162,6 +178,7 @@ def locators_for(page, step: dict, learned: dict):
                 out.append(page.get_by_role(rec["role"], name=rec["text"], exact=True))
             out.append(page.get_by_text(rec["text"], exact=True))
     for kind, *args in step["find"]:
+        args = [a.replace("{name}", name) for a in args]
         if kind == "role":
             out.append(page.get_by_role(args[0], name=args[1], exact=True))
         elif kind == "aria":
@@ -171,8 +188,8 @@ def locators_for(page, step: dict, learned: dict):
     return out
 
 
-def visible(page, step, learned):
-    for loc in locators_for(page, step, learned):
+def visible(page, step, learned, name=""):
+    for loc in locators_for(page, step, learned, name):
         try:
             first = loc.first
             if first.is_visible():
@@ -182,10 +199,10 @@ def visible(page, step, learned):
     return None
 
 
-def wait_visible(page, step, learned, seconds: float):
+def wait_visible(page, step, learned, seconds: float, name=""):
     end = time.time() + seconds
     while time.time() < end:
-        el = visible(page, step, learned)
+        el = visible(page, step, learned, name)
         if el:
             return el
         page.wait_for_timeout(250)
@@ -234,10 +251,73 @@ def open_browser(p, headless: bool):
         return p.chromium.launch_persistent_context(**kwargs)  # bundled Chromium
 
 
-def upload_one(page, name: str, zip_path: Path, learned: dict, clicks: list) -> bool:
+def run_steps(page, steps: list, learned: dict, clicks: list, name: str = "") -> None:
+    for i, step in enumerate(steps):
+        el = wait_visible(page, step, learned, 3 if step["optional"] else 6, name)
+        if el is None and step["optional"]:
+            # Skip if a later step's button is already on screen.
+            if any(visible(page, later, learned, name) for later in steps[i + 1:]):
+                log(f"skip {step['label']} (not needed)")
+                continue
+        if el is None:
+            teach(page, step, learned, clicks)
+            page.wait_for_timeout(800)
+        else:
+            el.click()
+            log(f"clicked {step['label']}")
+            page.wait_for_timeout(700)
+
+
+def skill_listed(page, name: str) -> bool:
+    try:
+        return page.get_by_text(name, exact=True).first.is_visible()
+    except Exception:
+        return False
+
+
+def delete_existing(page, name: str, learned: dict, clicks: list) -> None:
+    log(f"\"{name}\" is already installed; deleting it first (--replace)")
+    run_steps(page, DELETE_STEPS, learned, clicks, name)
+    # Confirm only if the dialog names this exact skill; otherwise ask in the terminal.
+    page.wait_for_timeout(600)
+    dialogs = page.get_by_role("dialog")
+    if dialogs.count() == 0 or not dialogs.last.is_visible():
+        raise RuntimeError("No delete confirmation appeared.")
+    dialog = dialogs.last
+    text = dialog.inner_text()
+    if not re.search(rf"\b{re.escape(name)}\b", text):
+        print(f"\n  The delete dialog doesn't mention \"{name}\":\n    {text.strip()[:200]}", flush=True)
+        if not sys.stdin.isatty() or input("  Delete anyway? [y/N] ").strip().lower() != "y":
+            raise RuntimeError("Stopped before deleting, to be safe. Delete the old skill by hand and run again.")
+    btn = None
+    for label in ["Delete", "Delete skill", "Remove", "Yes, delete"]:
+        b = dialog.get_by_role("button", name=label, exact=True)
+        if b.count() and b.first.is_visible():
+            btn = b.first
+            break
+    if btn is None:
+        raise RuntimeError("Couldn't find the button that confirms the delete.")
+    btn.click()
+    log("confirmed delete")
+    end = time.time() + 20
+    while time.time() < end and skill_listed(page, name):
+        page.wait_for_timeout(300)
+    if skill_listed(page, name):
+        raise RuntimeError(f"\"{name}\" still shows after deleting.")
+    log(f"old \"{name}\" deleted")
+
+
+def upload_one(page, name: str, zip_path: Path, learned: dict, clicks: list, replace: bool) -> bool:
     print(f"\nClaude app: installing \"{name}\"", flush=True)
     page.goto(BASE_URL, wait_until="domcontentloaded")
     page.wait_for_timeout(1500)
+    run_steps(page, NAV_STEPS, learned, clicks)
+    page.wait_for_timeout(1000)
+    if skill_listed(page, name):
+        if not replace:
+            print(f"\n  \"{name}\" is already installed. Run again with --replace to update it.", flush=True)
+            return False
+        delete_existing(page, name, learned, clicks)
 
     chooser_used = {"done": False}
 
@@ -247,20 +327,7 @@ def upload_one(page, name: str, zip_path: Path, learned: dict, clicks: list) -> 
     page.on("filechooser", on_chooser)
 
     try:
-        for i, step in enumerate(STEPS):
-            el = wait_visible(page, step, learned, 6 if not step["optional"] else 3)
-            if el is None and step["optional"]:
-                # Skip if a later step's button is already on screen.
-                if any(visible(page, later, learned) for later in STEPS[i + 1:]):
-                    log(f"skip {step['label']} (not needed)")
-                    continue
-            if el is None:
-                teach(page, step, learned, clicks)
-                page.wait_for_timeout(800)
-            else:
-                el.click()
-                log(f"clicked {step['label']}")
-                page.wait_for_timeout(700)
+        run_steps(page, UPLOAD_STEPS, learned, clicks)
 
         # The file picker may open straight away, or the page may show a drop area instead.
         end = time.time() + 5
@@ -313,7 +380,7 @@ def confirm(page, name: str) -> bool:
     return False
 
 
-def run_browser(jobs: list[tuple[str, Path]], login_only: bool, headless: bool) -> int:
+def run_browser(jobs: list[tuple[str, Path]], login_only: bool, headless: bool, replace: bool) -> int:
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
@@ -332,7 +399,7 @@ def run_browser(jobs: list[tuple[str, Path]], login_only: bool, headless: bool) 
             log("Signed in and saved.")
         for name, zip_path in jobs:
             try:
-                if not upload_one(page, name, zip_path, learned, clicks):
+                if not upload_one(page, name, zip_path, learned, clicks, replace):
                     failures += 1
             except Exception as e:  # keep going with the rest
                 failures += 1
@@ -343,7 +410,14 @@ def run_browser(jobs: list[tuple[str, Path]], login_only: bool, headless: bool) 
                     pass
                 print(f"\n  Couldn't install \"{name}\": {e}\n  Screenshot: {shot}", flush=True)
         if failures and not headless:
-            input("\n  Press Enter to close the browser... ")
+            if sys.stdin.isatty():
+                input("\n  Press Enter to close the browser... ")
+            else:  # run by Claude or another program: wait for the person to close the window
+                print("\n  Close the browser window when you're done.", flush=True)
+                try:
+                    page.wait_for_event("close", timeout=600_000)
+                except Exception:
+                    pass
         ctx.close()
     return failures
 
@@ -354,6 +428,7 @@ def main() -> None:
     ap.add_argument("--code", action="store_true", help="also install into Claude Code (~/.claude/skills)")
     ap.add_argument("--code-only", action="store_true", help="only install into Claude Code, skip the Claude app")
     ap.add_argument("--force", action="store_true", help="replace an existing Claude Code skill folder")
+    ap.add_argument("--replace", action="store_true", help="update: delete a Claude app skill with the same name first")
     ap.add_argument("--login", action="store_true", help="sign in once and save the session")
     ap.add_argument("--forget", action="store_true", help="forget learned buttons")
     ap.add_argument("--headless", action="store_true", help=argparse.SUPPRESS)  # for testing
@@ -376,11 +451,11 @@ def main() -> None:
             name, zip_path, folder = prepare(pth, wd)
             print(f"Ready: {name}  ({zip_path.stat().st_size // 1024} KB)")
             if a.code or a.code_only:
-                install_claude_code(name, folder, a.force)
+                install_claude_code(name, folder, a.force or a.replace)
             jobs.append((name, zip_path))
         failures = 0
         if not a.code_only and (jobs or a.login):
-            failures = run_browser(jobs, a.login, a.headless)
+            failures = run_browser(jobs, a.login, a.headless, a.replace)
     print("\nDone." if not failures else f"\nDone, with {failures} problem(s) above.")
     sys.exit(1 if failures else 0)
 
