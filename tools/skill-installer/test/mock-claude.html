@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Mock Claude skills page (for testing install_skill.py)</title>
+<style>
+  body { font-family: system-ui, sans-serif; display: flex; margin: 0; }
+  nav { width: 200px; padding: 16px; background: #f3f1ec; min-height: 100vh; }
+  main { padding: 24px; flex: 1; }
+  [hidden] { display: none !important; }
+  .menu { border: 1px solid #ccc; padding: 6px; width: 180px; background: #fff; }
+  .menu div { padding: 6px; cursor: pointer; }
+  dialog { padding: 20px; }
+</style>
+</head>
+<body>
+<nav><a href="#customize" id="customize">Customize</a></nav>
+<main>
+  <section id="panel" hidden>
+    <div role="tablist"><button role="tab" id="tab-skills">Skills</button><button role="tab">Connectors</button></div>
+    <div id="skills" hidden>
+      <h2>Skills</h2>
+      <button id="add" aria-label="Add skill">+</button>
+      <div id="menu1" class="menu" role="menu" hidden><div role="menuitem" id="create">Create skill</div><div role="menuitem">Write with Claude</div></div>
+      <div id="menu2" class="menu" role="menu" hidden><div role="menuitem" id="upload"></div></div>
+      <ul id="list"><li>pdf</li></ul>
+    </div>
+  </section>
+  <input type="file" id="file" accept=".zip" hidden>
+</main>
+<script>
+  const variant = new URLSearchParams(location.search).get('variant');
+  const $ = (id) => document.getElementById(id);
+  // "renamed" pretends Anthropic changed the button label, to test teach mode.
+  $('upload').textContent = variant === 'renamed' ? 'Import from a file' : 'Upload a skill';
+  $('customize').onclick = (e) => { e.preventDefault(); $('panel').hidden = false; };
+  $('tab-skills').onclick = () => { $('skills').hidden = false; };
+  $('add').onclick = () => { $('menu1').hidden = false; };
+  $('create').onclick = () => { $('menu1').hidden = true; $('menu2').hidden = false; };
+  $('upload').onclick = () => { $('menu2').hidden = true; $('file').click(); };
+  $('file').onchange = () => {
+    const f = $('file').files[0];
+    const d = document.createElement('dialog');
+    d.innerHTML = `<p>Selected ${f.name}</p><button>Cancel</button><button id="ok">Upload</button>`;
+    document.body.appendChild(d); d.showModal();
+    d.querySelector('#ok').onclick = () => {
+      setTimeout(() => { d.close(); d.remove();
+        const li = document.createElement('li'); li.textContent = f.name.replace(/\.zip$/, ''); $('list').appendChild(li);
+      }, 400);
+    };
+  };
+  // Stands in for a person clicking the renamed button while the script waits (teach mode).
+  if (variant === 'renamed') {
+    let seen = 0;
+    setInterval(() => { if (!$('menu2').hidden) { if (++seen === 40) $('upload').click(); } else seen = 0; }, 250);
+  }
+</script>
+</body>
+</html>
