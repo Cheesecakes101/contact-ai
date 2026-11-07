@@ -15,8 +15,9 @@ and hands the ZIP to the file picker. Buttons are found by their labels, not scr
 positions. If a button can't be found (Anthropic changed the page), it asks you to
 click it once in the window and remembers your click for next time.
 
-Needs: pip install playwright   (uses your installed Google Chrome; if you don't
-have Chrome, also run: python -m playwright install chromium)
+Needs: pip install playwright. It uses Microsoft Edge if you have it, otherwise
+Google Chrome (pick one with --browser edge|chrome). If you have neither, also run:
+python -m playwright install chromium
 """
 from __future__ import annotations
 
@@ -238,17 +239,31 @@ def ensure_logged_in(page) -> None:
         log("Signed in. The session is saved, so you won't need to do this again.")
 
 
-def open_browser(p, headless: bool):
-    PROFILE_DIR.mkdir(parents=True, exist_ok=True)
-    kwargs = dict(user_data_dir=str(PROFILE_DIR), headless=headless, viewport={"width": 1280, "height": 860},
-                  accept_downloads=False)
+BROWSERS = {"edge": "msedge", "chrome": "chrome", "chromium": None}
+
+
+def open_browser(p, headless: bool, choice: str):
+    """Open the installer's own browser window: Edge, then Chrome, then bundled Chromium."""
     exe = os.environ.get("SKILL_INSTALLER_BROWSER")
-    if exe:
-        return p.chromium.launch_persistent_context(executable_path=exe, **kwargs)
-    try:
-        return p.chromium.launch_persistent_context(channel="chrome", **kwargs)  # your real Chrome
-    except Exception:
-        return p.chromium.launch_persistent_context(**kwargs)  # bundled Chromium
+    order = [choice] if choice != "auto" else ["edge", "chrome", "chromium"]
+    errors = []
+    for name in order:
+        profile = PROFILE_DIR.with_name(f"{PROFILE_DIR.name}-{name}")  # each browser keeps its own sign-in
+        profile.mkdir(parents=True, exist_ok=True)
+        kwargs = dict(user_data_dir=str(profile), headless=headless, viewport={"width": 1280, "height": 860},
+                      accept_downloads=False)
+        try:
+            if exe:
+                return p.chromium.launch_persistent_context(executable_path=exe, **kwargs)
+            if BROWSERS[name]:
+                kwargs["channel"] = BROWSERS[name]
+            ctx = p.chromium.launch_persistent_context(**kwargs)
+            log(f"using {name}")
+            return ctx
+        except Exception as e:
+            errors.append(f"{name}: {str(e).splitlines()[0]}")
+    raise SystemExit("Couldn't open a browser.\n  " + "\n  ".join(errors) +
+                     "\nInstall Microsoft Edge or Google Chrome, or run: python -m playwright install chromium")
 
 
 def run_steps(page, steps: list, learned: dict, clicks: list, name: str = "") -> None:
@@ -380,7 +395,7 @@ def confirm(page, name: str) -> bool:
     return False
 
 
-def run_browser(jobs: list[tuple[str, Path]], login_only: bool, headless: bool, replace: bool) -> int:
+def run_browser(jobs: list[tuple[str, Path]], login_only: bool, headless: bool, replace: bool, browser: str) -> int:
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
@@ -390,7 +405,7 @@ def run_browser(jobs: list[tuple[str, Path]], login_only: bool, headless: bool, 
     clicks: list = []
     failures = 0
     with sync_playwright() as p:
-        ctx = open_browser(p, headless)
+        ctx = open_browser(p, headless, browser)
         ctx.expose_binding("__recordClick", lambda source, info: clicks.append(info))
         ctx.add_init_script(RECORDER_JS)
         page = ctx.pages[0] if ctx.pages else ctx.new_page()
@@ -430,6 +445,8 @@ def main() -> None:
     ap.add_argument("--force", action="store_true", help="replace an existing Claude Code skill folder")
     ap.add_argument("--replace", action="store_true", help="update: delete a Claude app skill with the same name first")
     ap.add_argument("--login", action="store_true", help="sign in once and save the session")
+    ap.add_argument("--browser", choices=["auto", "edge", "chrome", "chromium"], default="auto",
+                    help="which browser to use (default: Edge, then Chrome, then Chromium)")
     ap.add_argument("--forget", action="store_true", help="forget learned buttons")
     ap.add_argument("--headless", action="store_true", help=argparse.SUPPRESS)  # for testing
     a = ap.parse_args()
@@ -455,7 +472,7 @@ def main() -> None:
             jobs.append((name, zip_path))
         failures = 0
         if not a.code_only and (jobs or a.login):
-            failures = run_browser(jobs, a.login, a.headless, a.replace)
+            failures = run_browser(jobs, a.login, a.headless, a.replace, a.browser)
     print("\nDone." if not failures else f"\nDone, with {failures} problem(s) above.")
     sys.exit(1 if failures else 0)
 

@@ -1,12 +1,12 @@
 ---
 name: install-skill
-description: Install or update a Claude skill for the person. It uploads to the Claude app (claude.ai, desktop and phone) by driving their browser with a bundled Python script, and/or copies it into Claude Code (~/.claude/skills). Use when someone says "install this skill", "add this skill to Claude", "update my X skill", or gives a skill folder, .zip or .skill file to install. Needs to run on the person's own computer (Claude Code there), not in a cloud sandbox.
+description: Install or update a Claude skill for the person. It uploads to the Claude app (claude.ai, desktop and phone) by driving their browser (Edge, else Chrome) with a bundled Python script, and/or copies it into Claude Code (~/.claude/skills). Use when someone says "install this skill", "add this skill to Claude", "update my X skill", or gives a skill folder, .zip or .skill file to install. Needs to run on the person's own computer (Claude Code there), not in a cloud sandbox.
 ---
 
 # Install a skill
 
-`scripts/install_skill.py` (next to this file) does the work. It opens Chrome with
-its own saved Claude sign-in and clicks Customize → Skills → + → Create skill →
+`scripts/install_skill.py` (next to this file) does the work. It opens its own
+Edge window (or Chrome if there's no Edge) with a saved Claude sign-in and clicks Customize → Skills → + → Create skill →
 Upload a skill. Then it hands the ZIP to the file picker. Running it costs no Claude
 usage beyond the command itself, so **run the script; don't click through the site yourself**.
 
@@ -41,24 +41,28 @@ command to run on their laptop (step 4) and stop.
 
 ## 4. Run it
 
-Setup, once per computer (check with `python3 -c "import playwright"`):
+On Windows use `python` (or `py`) instead of `python3`, and paths like
+`%USERPROFILE%\.claude\skills\install-skill\scripts\install_skill.py`.
+
+Setup, once per computer (check with `python -c "import playwright"`):
 
 ```bash
 pip install playwright
 ```
 
-If they don't have Google Chrome, also run `python3 -m playwright install chromium`.
+Edge (default) or Chrome must be installed. With neither, also run `python -m playwright install chromium`.
+`--browser edge|chrome|chromium` picks one.
 
 Install:
 
 ```bash
-python3 "<this skill's folder>/scripts/install_skill.py" <path> [--code] [--replace]
+python "<this skill's folder>/scripts/install_skill.py" <path> [--code] [--replace]
 ```
 
 Several paths can go in one run. Give the command a long timeout (10 minutes),
 because it may wait for the person.
 
-**Before running, tell them a Chrome window will open, and to watch it.** The script
+**Before running, tell them a browser window (Edge) will open, and to watch it.** The script
 waits for them when:
 - **They need to sign in** (first run only). They sign in by hand, and the session is
   saved in `~/.claude-skill-installer/`. You never see or type their password.
