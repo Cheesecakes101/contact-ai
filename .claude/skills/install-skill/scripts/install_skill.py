@@ -6,10 +6,14 @@ Install Claude skills without using any Claude usage.
     python install_skill.py motion.zip --code                         # also into Claude Code (~/.claude/skills)
     python install_skill.py motion.zip --code-only                    # only Claude Code, no browser
     python install_skill.py motion.zip --replace                      # update: delete the old "motion" first
-    python install_skill.py --login                                   # just sign in once and save the session
+    python install_skill.py motion.zip --via browser                  # use a browser instead of the desktop app
+    python install_skill.py --login                                   # browser only: sign in once and save the session
     python install_skill.py --forget                                  # forget learned buttons
 
-How the Claude app part works: it opens Chrome with its own saved profile (you sign
+How the Claude app part works. On Windows (default): it drives the Claude desktop
+app through Windows UI Automation, using the app's existing sign-in; see
+desktop_app.py (needs: pip install pywinauto pynput). Elsewhere, or with
+--via browser: it opens Edge/Chrome with its own saved profile (you sign
 in once by hand), goes to Customize -> Skills -> + -> Create skill -> Upload a skill,
 and hands the ZIP to the file picker. Buttons are found by their labels, not screen
 positions. If a button can't be found (Anthropic changed the page), it asks you to
@@ -35,6 +39,7 @@ from pathlib import Path
 HOME_DIR = Path(os.environ.get("SKILL_INSTALLER_HOME", Path.home() / ".claude-skill-installer"))
 PROFILE_DIR = HOME_DIR / "browser-profile"
 LEARNED_FILE = HOME_DIR / "learned-buttons.json"
+LEARNED_APP_FILE = HOME_DIR / "learned-app-buttons.json"
 CLAUDE_CODE_SKILLS = Path.home() / ".claude" / "skills"
 BASE_URL = os.environ.get("SKILL_INSTALLER_URL", "https://claude.ai/")
 
@@ -437,6 +442,15 @@ def run_browser(jobs: list[tuple[str, Path]], login_only: bool, headless: bool, 
     return failures
 
 
+def load_desktop_app():
+    """Load desktop_app.py from next to this file (works even with python -I)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("desktop_app", Path(__file__).with_name("desktop_app.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Install Claude skills into the Claude app and/or Claude Code.")
     ap.add_argument("paths", nargs="*", help="skill folders or .zip files")
@@ -445,6 +459,8 @@ def main() -> None:
     ap.add_argument("--force", action="store_true", help="replace an existing Claude Code skill folder")
     ap.add_argument("--replace", action="store_true", help="update: delete a Claude app skill with the same name first")
     ap.add_argument("--login", action="store_true", help="sign in once and save the session")
+    ap.add_argument("--via", choices=["app", "browser"], default="app" if sys.platform == "win32" else "browser",
+                    help="install through the Claude desktop app (Windows, default there) or a browser")
     ap.add_argument("--browser", choices=["auto", "edge", "chrome", "chromium"], default="auto",
                     help="which browser to use (default: Edge, then Chrome, then Chromium)")
     ap.add_argument("--forget", action="store_true", help="forget learned buttons")
@@ -471,7 +487,9 @@ def main() -> None:
                 install_claude_code(name, folder, a.force or a.replace)
             jobs.append((name, zip_path))
         failures = 0
-        if not a.code_only and (jobs or a.login):
+        if not a.code_only and jobs and a.via == "app":
+            failures = load_desktop_app().run(jobs, a.replace, LEARNED_APP_FILE, NAV_STEPS, UPLOAD_STEPS, DELETE_STEPS)
+        elif not a.code_only and (jobs or a.login):
             failures = run_browser(jobs, a.login, a.headless, a.replace, a.browser)
     print("\nDone." if not failures else f"\nDone, with {failures} problem(s) above.")
     sys.exit(1 if failures else 0)
